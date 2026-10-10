@@ -71,6 +71,9 @@
     font-size: 25px;
     color: #000;
     line-height: 1.3;
+.option.correct {
+    font-weight: bold;
+}
 }
     </style>
 </head>
@@ -344,8 +347,14 @@ var STORAGE_KEY = 'kaoju_progress';
                         stageDiv.appendChild(optionsDiv);
                         // 如果这个阶段在之前已经完成，则锁定其选项
                         if (index < maxUnlocked) {
-                            optionsDiv.classList.add('locked');
-                        }
+    optionsDiv.classList.add('locked');
+    var allOpts = optionsDiv.querySelectorAll('.option');
+    for (var m = 0; m < allOpts.length; m++) {
+        if (correctSet[allOpts[m].textContent]) {
+            allOpts[m].classList.add('correct');
+        }
+    }
+}
                     }
                     app.appendChild(stageDiv);
                 })(i);
@@ -363,8 +372,16 @@ var STORAGE_KEY = 'kaoju_progress';
                 if (!correctSet[selectedTexts[i]]) return false;
             }
             optionsDiv.classList.add('locked');
-            showNextStage(stageIndex);
-            return true;
+
+var allOpts = optionsDiv.querySelectorAll('.option');
+for (var m = 0; m < allOpts.length; m++) {
+    if (correctSet[allOpts[m].textContent]) {
+        allOpts[m].classList.add('correct');
+    }
+}
+
+showNextStage(stageIndex);
+return true;
         }
         // 显示下一个阶段，并保存进度到 localStorage
         function showNextStage(currentIndex) {
