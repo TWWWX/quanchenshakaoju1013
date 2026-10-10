@@ -102,9 +102,8 @@
 
     <script>
         (function() {
-            // ==================== 数据配置 ====================
-            // 每个阶段包含：content（可选）和 question（可选）
-            // question.options 中 correct: true 表示正确答案
+           
+var STORAGE_KEY = 'kaoju_progress';
             var stages = [
 
                 {
@@ -281,114 +280,109 @@
 
             // ==================== 逻辑实现 ====================
             var app = document.getElementById('app');
-            function shuffleArray(arr) {
-                var a = arr.slice(); // 复制一份，不修改原数组
-                    for (var i = a.length - 1; i > 0; i--) {
-                        var j = Math.floor(Math.random() * (i + 1));
-                        var temp = a[i];
-                        a[i] = a[j];
-                        a[j] = temp;
-                    }
-                return a;
-}
-
-            // 构建所有阶段的 DOM，并默认隐藏除第一个外的所有阶段
-            function buildStages() {
-                for (var i = 0; i < stages.length; i++) {
-                    (function(index) {
-                        var stageData = stages[index];
-                        var stageDiv = document.createElement('div');
-                        stageDiv.className = 'stage';
-                        if (index !== 0) {
-                            stageDiv.classList.add('hidden');
-                        }
-                        stageDiv.dataset.stageIndex = index;
-
-                        // 内容块
-                        if (stageData.content) {
-                            var contentDiv = document.createElement('div');
-                            contentDiv.className = 'content-block';
-                            var contentDiv = document.createElement('div');
-                            contentDiv.className = 'content-block';
-                            contentDiv.innerHTML = stageData.content; 
-                            stageDiv.appendChild(contentDiv);
-                        }
-
-                        // 题目块
-if (stageData.question) {
-    var optionsDiv = document.createElement('div');
-    optionsDiv.className = 'options';
-    var originalOptions = stageData.question.options;
-    var correctSet = {};
-    for (var k = 0; k < originalOptions.length; k++) {
-        if (originalOptions[k].correct) {
-            correctSet[originalOptions[k].text] = true;
+        function shuffleArray(arr) {
+            var a = arr.slice(); // 复制一份，不修改原数组
+            for (var i = a.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = a[i];
+                a[i] = a[j];
+                a[j] = temp;
+            }
+            return a;
         }
-    }
-    
-    var shuffledOptions = shuffleArray(originalOptions);
-    for (var j = 0; j < shuffledOptions.length; j++) {
-        (function(opt) {
-            var optSpan = document.createElement('span');
-            optSpan.className = 'option';
-            optSpan.textContent = opt.text;
-            
-            optSpan.addEventListener('click', function() {
-                if (optionsDiv.classList.contains('locked')) return;
-                
-                if (optSpan.classList.contains('selected')) {
-                    optSpan.classList.remove('selected');
-                } else {
-                    optSpan.classList.add('selected');
-                }
-                
-                checkQuestion(optionsDiv, correctSet, index);
-            });
-            
-            optionsDiv.appendChild(optSpan);
-        })(shuffledOptions[j]);
-    }
-    stageDiv.appendChild(optionsDiv);
-}
-
-                        app.appendChild(stageDiv);
-                    })(i);
-                }
+        // 构建所有阶段的 DOM，并根据记忆进度显示/隐藏
+        function buildStages() {
+            // 读取已保存的进度，默认 0（只显示第一阶段）
+            var saved = localStorage.getItem(STORAGE_KEY);
+            var maxUnlocked = saved ? parseInt(saved) : 0;
+            for (var i = 0; i < stages.length; i++) {
+                (function(index) {
+                    var stageData = stages[index];
+                    var stageDiv = document.createElement('div');
+                    stageDiv.className = 'stage';
+                    // 只显示已解锁的阶段（index <= maxUnlocked）
+                    if (index > maxUnlocked) {
+                        stageDiv.classList.add('hidden');
+                    }
+                    stageDiv.dataset.stageIndex = index;
+                    // 内容块
+                    if (stageData.content) {
+                        var contentDiv = document.createElement('div');
+                        contentDiv.className = 'content-block';
+                        contentDiv.innerHTML = stageData.content;
+                        stageDiv.appendChild(contentDiv);
+                    }
+                    // 题目块
+                    if (stageData.question) {
+                        var optionsDiv = document.createElement('div');
+                        optionsDiv.className = 'options';
+                        var originalOptions = stageData.question.options;
+                        var correctSet = {};
+                        for (var k = 0; k < originalOptions.length; k++) {
+                            if (originalOptions[k].correct) {
+                                correctSet[originalOptions[k].text] = true;
+                            }
+                        }
+                        var shuffledOptions = shuffleArray(originalOptions);
+                        for (var j = 0; j < shuffledOptions.length; j++) {
+                            (function(opt) {
+                                var optSpan = document.createElement('span');
+                                optSpan.className = 'option';
+                                optSpan.textContent = opt.text;
+                                optSpan.addEventListener('click', function() {
+                                    if (optionsDiv.classList.contains('locked')) return;
+                                    if (optSpan.classList.contains('selected')) {
+                                        optSpan.classList.remove('selected');
+                                    } else {
+                                        optSpan.classList.add('selected');
+                                    }
+                                    checkQuestion(optionsDiv, correctSet, index);
+                                });
+                                optionsDiv.appendChild(optSpan);
+                            })(shuffledOptions[j]);
+                        }
+                        stageDiv.appendChild(optionsDiv);
+                        // 如果这个阶段在之前已经完成，则锁定其选项
+                        if (index < maxUnlocked) {
+                            optionsDiv.classList.add('locked');
+                        }
+                    }
+                    app.appendChild(stageDiv);
+                })(i);
             }
-
-            function checkQuestion(optionsDiv, correctSet, stageIndex) {
-                var selectedOptions = optionsDiv.querySelectorAll('.option.selected');
-                var selectedTexts = [];
-                for (var i = 0; i < selectedOptions.length; i++) {
-                    selectedTexts.push(selectedOptions[i].textContent);
-                }
-
-                var correctTexts = Object.keys(correctSet);
-                if (selectedTexts.length !== correctTexts.length) return false;
-
-                for (var i = 0; i < selectedTexts.length; i++) {
-                    if (!correctSet[selectedTexts[i]]) return false;
-                }
-                
-                optionsDiv.classList.add('locked');
-                showNextStage(stageIndex);
-                return true;
+        }
+        function checkQuestion(optionsDiv, correctSet, stageIndex) {
+            var selectedOptions = optionsDiv.querySelectorAll('.option.selected');
+            var selectedTexts = [];
+            for (var i = 0; i < selectedOptions.length; i++) {
+                selectedTexts.push(selectedOptions[i].textContent);
             }
-
-            // 显示下一个阶段
-            function showNextStage(currentIndex) {
-                var nextIndex = currentIndex + 1;
-                if (nextIndex >= stages.length) return;
-
-                var nextStageDiv = app.querySelector('.stage[data-stage-index="' + nextIndex + '"]');
-                if (nextStageDiv) {
-                    nextStageDiv.classList.remove('hidden');
-                }
+            var correctTexts = Object.keys(correctSet);
+            if (selectedTexts.length !== correctTexts.length) return false;
+            for (var i = 0; i < selectedTexts.length; i++) {
+                if (!correctSet[selectedTexts[i]]) return false;
             }
-
-            // 初始化
-            buildStages();
-        })();
-    </script>
+            optionsDiv.classList.add('locked');
+            showNextStage(stageIndex);
+            return true;
+        }
+        // 显示下一个阶段，并保存进度到 localStorage
+        function showNextStage(currentIndex) {
+            var nextIndex = currentIndex + 1;
+            if (nextIndex >= stages.length) return;
+            // 更新 localStorage 里的最大解锁进度
+            var saved = parseInt(localStorage.getItem(STORAGE_KEY)) || 0;
+            if (nextIndex > saved) {
+                localStorage.setItem(STORAGE_KEY, nextIndex);
+            }
+            var nextStageDiv = app.querySelector('.stage[data-stage-index="' + nextIndex + '"]');
+            if (nextStageDiv) {
+                nextStageDiv.classList.remove('hidden');
+            }
+        }
+        // 初始化
+        buildStages();
+    })();
+</script>
 </body>
 </html>
